@@ -85,3 +85,43 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	http.NotFound(w, r)
 }
+
+// PatchUserHandler handles PATCH requests to partially update a user
+func PatchUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Get the user ID from URL
+	id := mux.Vars(r)["id"]
+
+	var userIndex = -1
+	var existingUser models.User
+	for i, u := range users {
+		if u.ID == id {
+			userIndex = i
+			existingUser = u
+			break
+		}
+	}
+
+	if userIndex == -1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	var updates map[string]interface{}
+	err := json.NewDecoder(r.Body).Decode(&updates)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if name, ok := updates["name"].(string); ok && name != "" {
+		existingUser.Name = name
+	}
+
+	// Update the user in the slice
+	users[userIndex] = existingUser
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(existingUser); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}

@@ -13,6 +13,7 @@ func NewRouter() *mux.Router {
 	r.HandleFunc("/users/{id}", GetUserHandler).Methods("GET")
 	r.HandleFunc("/users/{id}", UpdateUserHandler).Methods("PUT")
 	r.HandleFunc("/users/{id}", DeleteUserHandler).Methods("DELETE")
+	r.HandleFunc("/users/{id}", PatchUserHandler).Methods("PATCH")
 
 	return r
 }
