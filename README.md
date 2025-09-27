@@ -1,2 +1,2 @@
 # go-openapi-starter
-Go OpenAPI Starter
+Go OpenAPI Starter - API for managing users - basic setup
