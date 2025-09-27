@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go-openapi-starter/internal/api"
 	"log"
 	"net/http"
 )
