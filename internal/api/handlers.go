@@ -2,83 +2,87 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"go-openapi-starter/internal/models"
 	"net/http"
+	"strconv"
 )
 
-var users = []models.User{
-	{ID: "1", Name: "Alice"},
-	{ID: "2", Name: "Bob"},
+type Handlers struct {
+	users  []models.User
+	nextID int
 }
 
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
+func NewHandlers() *Handlers {
+	return &Handlers{
+		users: []models.User{
+			{ID: "1", Name: "John"},
+			{ID: "2", Name: "Claire"},
+		},
+		nextID: 3,
+	}
+}
+
+func (h *Handlers) GetHealth(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(`{"status":"ok"}`))
-	if err != nil {
-		return
-	}
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
-	err := json.NewEncoder(w).Encode(users)
-	if err != nil {
-		return
-	}
+func (h *Handlers) GetUsers(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(h.users)
 }
 
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
-	var u models.User
-	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+func (h *Handlers) PostUsers(w http.ResponseWriter, r *http.Request) {
+	var user models.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	users = append(users, u)
+
+	// Assign a new ID
+	user.ID = strconv.Itoa(h.nextID)
+	h.nextID++
+	h.users = append(h.users, user)
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	err := json.NewEncoder(w).Encode(u)
-	if err != nil {
+	_ = json.NewEncoder(w).Encode(user)
+}
+
+func (h *Handlers) GetUsersId(w http.ResponseWriter, r *http.Request, id string) {
+	for _, user := range h.users {
+		if user.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(user)
+			return
+		}
+	}
+	http.NotFound(w, r)
+}
+
+func (h *Handlers) PutUsersId(w http.ResponseWriter, r *http.Request, id string) {
+	var updated models.User
+	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-}
 
-func GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	for _, u := range users {
-		if u.ID == id {
-			err := json.NewEncoder(w).Encode(u)
-			if err != nil {
-				return
-			}
+	for i, user := range h.users {
+		if user.ID == id {
+			updated.ID = id // Ensure ID remains the same
+			h.users[i] = updated
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(updated)
 			return
 		}
 	}
 	http.NotFound(w, r)
 }
 
-func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	for i, u := range users {
-		if u.ID == id {
-			var updated models.User
-			if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			users[i] = updated
-			err := json.NewEncoder(w).Encode(updated)
-			if err != nil {
-				return
-			}
-			return
-		}
-	}
-	http.NotFound(w, r)
-}
-
-func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	for i, u := range users {
-		if u.ID == mux.Vars(r)["id"] {
-			users = append(users[:i], users[i+1:]...)
+func (h *Handlers) DeleteUsersId(w http.ResponseWriter, r *http.Request, id string) {
+	for i, user := range h.users {
+		if user.ID == id {
+			h.users = append(h.users[:i], h.users[i+1:]...)
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -86,14 +90,11 @@ func DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-// PatchUserHandler handles PATCH requests to partially update a user
-func PatchUserHandler(w http.ResponseWriter, r *http.Request) {
-	// Get the user ID from URL
-	id := mux.Vars(r)["id"]
-
+func (h *Handlers) PatchUsersId(w http.ResponseWriter, r *http.Request, id string) {
 	var userIndex = -1
 	var existingUser models.User
-	for i, u := range users {
+
+	for i, u := range h.users {
 		if u.ID == id {
 			userIndex = i
 			existingUser = u
@@ -107,8 +108,7 @@ func PatchUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updates map[string]interface{}
-	err := json.NewDecoder(r.Body).Decode(&updates)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -117,11 +117,7 @@ func PatchUserHandler(w http.ResponseWriter, r *http.Request) {
 		existingUser.Name = name
 	}
 
-	// Update the user in the slice
-	users[userIndex] = existingUser
-
+	h.users[userIndex] = existingUser
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(existingUser); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	_ = json.NewEncoder(w).Encode(existingUser)
 }

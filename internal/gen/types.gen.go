@@ -9,5 +9,21 @@ type User struct {
 	Name *string `json:"name,omitempty"`
 }
 
+// UserCreate defines model for UserCreate.
+type UserCreate struct {
+	Name string `json:"name"`
+}
+
+// UserUpdate defines model for UserUpdate.
+type UserUpdate struct {
+	Name *string `json:"name,omitempty"`
+}
+
 // PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
-type PostUsersJSONRequestBody = User
+type PostUsersJSONRequestBody = UserCreate
+
+// PatchUsersIdJSONRequestBody defines body for PatchUsersId for application/json ContentType.
+type PatchUsersIdJSONRequestBody = UserUpdate
+
+// PutUsersIdJSONRequestBody defines body for PutUsersId for application/json ContentType.
+type PutUsersIdJSONRequestBody = User
